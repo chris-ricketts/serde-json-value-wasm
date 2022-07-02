@@ -1,19 +1,15 @@
 use crate::de::Error;
-use core::fmt::{self, Debug, Display};
 use core::hash::{Hash, Hasher};
-use serde::de::{self, Unexpected, Visitor};
-use serde::{
-    forward_to_deserialize_any, serde_if_integer128, Deserialize, Deserializer, Serialize,
-    Serializer,
-};
+use serde::de::Visitor;
+use serde::{forward_to_deserialize_any, serde_if_integer128, Deserialize, Deserializer};
 
 /// Represents a JSON number, whether integer or floating point.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Number {
     n: N,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum N {
     PosInt(u64),
     /// Always less than zero.
@@ -144,43 +140,6 @@ impl Number {
     }
 }
 
-impl Display for Number {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.n {
-            N::PosInt(u) => Display::fmt(&u, formatter),
-            N::NegInt(i) => Display::fmt(&i, formatter),
-        }
-    }
-}
-
-impl Debug for Number {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug = formatter.debug_tuple("Number");
-        match self.n {
-            N::PosInt(i) => {
-                debug.field(&i);
-            }
-            N::NegInt(i) => {
-                debug.field(&i);
-            }
-        }
-        debug.finish()
-    }
-}
-
-impl Serialize for Number {
-    #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.n {
-            N::PosInt(u) => serializer.serialize_u64(u),
-            N::NegInt(i) => serializer.serialize_i64(i),
-        }
-    }
-}
-
 impl<'de> Deserialize<'de> for Number {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Number, D::Error>
@@ -192,7 +151,7 @@ impl<'de> Deserialize<'de> for Number {
         impl<'de> Visitor<'de> for NumberVisitor {
             type Value = Number;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            fn expecting(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 formatter.write_str("a JSON number")
             }
 
@@ -205,14 +164,6 @@ impl<'de> Deserialize<'de> for Number {
             fn visit_u64<E>(self, value: u64) -> Result<Number, E> {
                 Ok(value.into())
             }
-
-            #[inline]
-            fn visit_f64<E>(self, _value: f64) -> Result<Number, E>
-            where
-                E: de::Error,
-            {
-                unreachable!()
-            }
         }
 
         deserializer.deserialize_any(NumberVisitor)
@@ -221,7 +172,6 @@ impl<'de> Deserialize<'de> for Number {
 
 macro_rules! deserialize_any {
     (@expand [$($num_string:tt)*]) => {
-        #[cfg(not(feature = "arbitrary_precision"))]
         #[inline]
         fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
         where
@@ -231,26 +181,6 @@ macro_rules! deserialize_any {
                 N::PosInt(u) => visitor.visit_u64(u),
                 N::NegInt(i) => visitor.visit_i64(i),
             }
-        }
-
-        #[cfg(feature = "arbitrary_precision")]
-        #[inline]
-        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-            where V: Visitor<'de>
-        {
-            if let Some(u) = self.as_u64() {
-                return visitor.visit_u64(u);
-            } else if let Some(i) = self.as_i64() {
-                return visitor.visit_i64(i);
-            } else if let Some(f) = self.as_f64() {
-                if ryu::Buffer::new().format_finite(f) == self.n || f.to_string() == self.n {
-                    return visitor.visit_f64(f);
-                }
-            }
-
-            visitor.visit_map(NumberDeserializer {
-                number: Some(self.$($num_string)*),
-            })
         }
     };
 
@@ -287,8 +217,20 @@ impl<'de> Deserializer<'de> for Number {
     deserialize_number!(deserialize_u16 => visit_u16);
     deserialize_number!(deserialize_u32 => visit_u32);
     deserialize_number!(deserialize_u64 => visit_u64);
-    deserialize_number!(deserialize_f32 => visit_f32);
-    deserialize_number!(deserialize_f64 => visit_f64);
+
+    fn deserialize_f64<V>(self, _: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        unreachable!()
+    }
+
+    fn deserialize_f32<V>(self, _: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        unreachable!()
+    }
 
     serde_if_integer128! {
         deserialize_number!(deserialize_i128 => visit_i128);
@@ -315,8 +257,20 @@ impl<'de, 'a> Deserializer<'de> for &'a Number {
     deserialize_number!(deserialize_u16 => visit_u16);
     deserialize_number!(deserialize_u32 => visit_u32);
     deserialize_number!(deserialize_u64 => visit_u64);
-    deserialize_number!(deserialize_f32 => visit_f32);
-    deserialize_number!(deserialize_f64 => visit_f64);
+
+    fn deserialize_f32<V>(self, _: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        unreachable!()
+    }
+
+    fn deserialize_f64<V>(self, _: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        unreachable!()
+    }
 
     serde_if_integer128! {
         deserialize_number!(deserialize_i128 => visit_i128);
@@ -330,40 +284,6 @@ impl<'de, 'a> Deserializer<'de> for &'a Number {
     }
 }
 
-// pub(crate) enum ParserNumber {
-//     U64(u64),
-//     I64(i64),
-// }
-
-// impl ParserNumber {
-//     fn visit<'de, V>(self, visitor: V) -> Result<V::Value, Error>
-//     where
-//         V: de::Visitor<'de>,
-//     {
-//         match self {
-//             ParserNumber::U64(x) => visitor.visit_u64(x),
-//             ParserNumber::I64(x) => visitor.visit_i64(x),
-//         }
-//     }
-
-//     fn invalid_type(self, exp: &dyn Expected) -> Error {
-//         match self {
-//             ParserNumber::U64(x) => de::Error::invalid_type(Unexpected::Unsigned(x), exp),
-//             ParserNumber::I64(x) => de::Error::invalid_type(Unexpected::Signed(x), exp),
-//         }
-//     }
-// }
-
-// impl From<ParserNumber> for Number {
-//     fn from(value: ParserNumber) -> Self {
-//         let n = match value {
-//             ParserNumber::U64(u) => N::PosInt(u),
-//             ParserNumber::I64(i) => N::NegInt(i),
-//         };
-//         Number { n }
-//     }
-// }
-
 macro_rules! impl_from_unsigned {
     (
         $($ty:ty),*
@@ -373,12 +293,7 @@ macro_rules! impl_from_unsigned {
                 #[inline]
                 fn from(u: $ty) -> Self {
                     let n = {
-                        #[cfg(not(feature = "arbitrary_precision"))]
                         { N::PosInt(u as u64) }
-                        #[cfg(feature = "arbitrary_precision")]
-                        {
-                            itoa::Buffer::new().format(u).to_owned()
-                        }
                     };
                     Number { n }
                 }
@@ -411,13 +326,3 @@ macro_rules! impl_from_signed {
 
 impl_from_unsigned!(u8, u16, u32, u64, usize);
 impl_from_signed!(i8, i16, i32, i64, isize);
-
-impl Number {
-    #[cold]
-    pub(crate) fn unexpected(&self) -> Unexpected<'_> {
-        match self.n {
-            N::PosInt(u) => Unexpected::Unsigned(u),
-            N::NegInt(i) => Unexpected::Signed(i),
-        }
-    }
-}

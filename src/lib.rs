@@ -99,7 +99,6 @@ macro_rules! tri {
 }
 
 use crate::de::Error;
-use core::fmt::{self, Debug};
 use core::mem;
 use core::str;
 use serde::de::DeserializeOwned;
@@ -111,7 +110,7 @@ pub use self::number::Number;
 /// Represents any valid JSON value.
 ///
 /// See the [`serde_json::value` module documentation](self) for usage examples.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Value {
     /// Represents a JSON null value.
     ///
@@ -172,27 +171,6 @@ pub enum Value {
     /// let v = json!({ "an": "object" });
     /// ```
     Object(Map<String, Value>),
-}
-
-impl Debug for Value {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::Null => formatter.debug_tuple("Null").finish(),
-            Value::Bool(v) => formatter.debug_tuple("Bool").field(v).finish(),
-            Value::Number(v) => Debug::fmt(v, formatter),
-            Value::String(v) => formatter.debug_tuple("String").field(v).finish(),
-            Value::Array(v) => {
-                formatter.write_str("Array(")?;
-                Debug::fmt(v, formatter)?;
-                formatter.write_str(")")
-            }
-            Value::Object(v) => {
-                formatter.write_str("Object(")?;
-                Debug::fmt(v, formatter)?;
-                formatter.write_str(")")
-            }
-        }
-    }
 }
 
 fn parse_index(s: &str) -> Option<usize> {
@@ -862,13 +840,5 @@ mod test {
                 "secret1fc3fzy78ttp0lwuujw7e52rhspxn8uj52zfyne",
             ])
         );
-    }
-
-    #[test]
-    fn floats_rejected() {
-        let jf64 = json!(0.1f64).to_string();
-        let jf32 = json!(0.1f32).to_string();
-        serde_json_wasm::from_str::<Value>(&jf64).unwrap_err();
-        serde_json_wasm::from_str::<Value>(&jf32).unwrap_err();
     }
 }

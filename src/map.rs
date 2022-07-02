@@ -7,7 +7,6 @@
 //! [`IndexMap`]: https://docs.rs/indexmap/*/indexmap/map/struct.IndexMap.html
 
 use core::borrow::Borrow;
-use core::fmt::{self, Debug};
 use core::hash::Hash;
 use core::iter::{FromIterator, FusedIterator};
 use core::ops;
@@ -18,6 +17,7 @@ use std::collections::{btree_map, BTreeMap};
 use crate::Value;
 
 /// Represents a JSON key/value type.
+#[derive(Debug)]
 pub struct Map<K, V> {
     map: MapImpl<K, V>,
 }
@@ -303,13 +303,6 @@ where
     }
 }
 
-impl Debug for Map<String, Value> {
-    #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        self.map.fmt(formatter)
-    }
-}
-
 impl<'de> de::Deserialize<'de> for Map<String, Value> {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -321,7 +314,7 @@ impl<'de> de::Deserialize<'de> for Map<String, Value> {
         impl<'de> de::Visitor<'de> for Visitor {
             type Value = Map<String, Value>;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            fn expecting(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 formatter.write_str("a map")
             }
 

@@ -1,6 +1,5 @@
 use super::map::Map;
 use super::Value;
-use core::fmt::{self, Display};
 use core::ops;
 
 /// A type that can be used to index into a `serde_json::Value`.
@@ -68,12 +67,12 @@ impl Index for usize {
                 let len = vec.len();
                 vec.get_mut(*self).unwrap_or_else(|| {
                     panic!(
-                        "cannot access index {} of JSON array of length {}",
+                        "cannot access index {:?} of JSON array of length {}",
                         self, len
                     )
                 })
             }
-            _ => panic!("cannot access index {} of JSON {}", self, Type(v)),
+            _ => panic!("cannot access index {:?} of JSON {:?}", self, Type(v)),
         }
     }
 }
@@ -97,7 +96,7 @@ impl Index for str {
         }
         match v {
             Value::Object(map) => map.entry(self.to_owned()).or_insert(Value::Null),
-            _ => panic!("cannot access key {:?} in JSON {}", self, Type(v)),
+            _ => panic!("cannot access key {:?} in JSON {:?}", self, Type(v)),
         }
     }
 }
@@ -139,20 +138,8 @@ mod private {
 }
 
 /// Used in panic messages.
+#[derive(Debug)]
 struct Type<'a>(&'a Value);
-
-impl<'a> Display for Type<'a> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self.0 {
-            Value::Null => formatter.write_str("null"),
-            Value::Bool(_) => formatter.write_str("boolean"),
-            Value::Number(_) => formatter.write_str("number"),
-            Value::String(_) => formatter.write_str("string"),
-            Value::Array(_) => formatter.write_str("array"),
-            Value::Object(_) => formatter.write_str("object"),
-        }
-    }
-}
 
 // The usual semantics of Index is to panic on invalid indexing.
 //

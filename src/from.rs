@@ -3,7 +3,6 @@ use super::number::Number;
 use super::Value;
 use core::iter::FromIterator;
 use std::borrow::Cow;
-use std::string::ToString;
 
 macro_rules! from_integer {
     ($($ty:ident)*) => {
@@ -66,7 +65,7 @@ impl<'a> From<&'a str> for Value {
     /// let x: Value = s.into();
     /// ```
     fn from(f: &str) -> Self {
-        Value::String(f.to_string())
+        Value::String(String::from(f))
     }
 }
 

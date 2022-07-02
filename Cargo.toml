@@ -16,7 +16,7 @@ exclude = [".cargo/", ".gitignore"]
 doctest = false
 
 [dependencies]
-serde = "1.0.137"
+serde = { version = "1.0", default-features = false, features = ["alloc"] }
 serde-json-wasm = "0.4.1"
 
 [dev-dependencies]
