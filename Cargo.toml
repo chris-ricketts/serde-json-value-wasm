@@ -19,5 +19,11 @@ doctest = false
 serde = { version = "1.0", default-features = false, features = ["alloc"] }
 serde-json-wasm = "0.4.1"
 
+
 [dev-dependencies]
 serde_json = "1.0.82"
+
+[profile.release]
+# `lto = true` should also work
+lto = 'fat'
+debug = true
