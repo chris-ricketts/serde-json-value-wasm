@@ -1001,7 +1001,7 @@ impl<'de> MapAccess<'de> for MapRefDeserializer<'de> {
     {
         match self.value.take() {
             Some(value) => seed.deserialize(value),
-            None => Err(serde::de::Error::custom("value is missing")),
+            None => Err(Error::Custom("value is missing".to_owned())),
         }
     }
 
